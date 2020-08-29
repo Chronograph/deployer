@@ -3,15 +3,12 @@
 namespace REBELinBLUE\Deployer\Providers;
 
 use Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider;
-use Clockwork\Support\Laravel\ClockworkMiddleware;
-use Clockwork\Support\Laravel\ClockworkServiceProvider;
 use GrahamCampbell\HTMLMin\HTMLMinServiceProvider;
 use GrahamCampbell\HTMLMin\Http\Middleware\MinifyMiddleware;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 use Laracademy\Commands\MakeServiceProvider;
-use Laravel\Dusk\DuskServiceProvider;
-use Lubusin\Decomposer\Decomposer;
 use REBELinBLUE\Deployer\Project;
 use REBELinBLUE\Deployer\Services\Filesystem\Filesystem;
 use REBELinBLUE\Deployer\Services\Token\TokenGenerator;
@@ -32,9 +29,8 @@ class AppServiceProvider extends ServiceProvider
         'production' => [
             HTMLMinServiceProvider::class,
         ],
-        'local' => [
+        'local' => [ // FIXME: Move these to dev only dependencies
             IdeHelperServiceProvider::class,
-            ClockworkServiceProvider::class,
             MakeServiceProvider::class,
         ],
     ];
@@ -49,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
             MinifyMiddleware::class,
         ],
         'local' => [
-            ClockworkMiddleware::class,
+
         ],
     ];
 
@@ -63,6 +59,8 @@ class AppServiceProvider extends ServiceProvider
             'project'  => Project::class,
             'template' => Template::class,
         ]);
+
+        Paginator::useBootstrapThree();
     }
 
     /**
@@ -78,7 +76,6 @@ class AppServiceProvider extends ServiceProvider
         $this->registerAdditionalProviders($this->providers[$env]);
         $this->registerAdditionalMiddleware($this->middleware[$env]);
         $this->registerDependencies();
-        $this->registerSystemInfo();
     }
 
     /**
@@ -116,30 +113,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(TokenGeneratorInterface::class, TokenGenerator::class);
 
-        if ($this->app->environment('local', 'testing') && class_exists(DuskServiceProvider::class, true)) {
-            $this->app->register(DuskServiceProvider::class);
-        }
-
         $this->app->singleton('files', function () {
             return new Filesystem();
         });
-    }
-
-    /**
-     * Registers additional information to show in the sysinfo.
-     */
-    private function registerSystemInfo()
-    {
-        $decomposer = $this->app->make(Decomposer::class);
-
-        $decomposer->addServerStats([
-            'Curl Ext' => extension_loaded('curl'),
-            'GD Ext'   => extension_loaded('gd'),
-            'JSON Ext' => extension_loaded('json'),
-        ]);
-
-        $decomposer->addExtraStats([
-            'proc_open enabled' => function_exists('proc_open'),
-        ]);
     }
 }
